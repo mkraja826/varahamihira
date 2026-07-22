@@ -1,3 +1,4 @@
+from .astro_integration import request_from_astro_analysis
 from .engine import evaluate
 from .models import (
     DomainResult,
@@ -19,4 +20,5 @@ __all__ = [
     "PredictionRequest",
     "PredictionResponse",
     "evaluate",
+    "request_from_astro_analysis",
 ]
