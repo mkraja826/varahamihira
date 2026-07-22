@@ -72,6 +72,9 @@ class DomainResult:
     challenging_score: float
     net_score: float
     statement: str
+    advisory: str
+    favourable_timing: str | None
+    challenging_timing: str | None
     supporting_factors: tuple[Evidence, ...]
     challenging_factors: tuple[Evidence, ...]
     contextual_factors: tuple[Evidence, ...]
@@ -115,6 +118,9 @@ class PredictionResponse:
                     "challenging_score": result.challenging_score,
                     "net_score": result.net_score,
                     "statement": result.statement,
+                    "advisory": result.advisory,
+                    "favourable_timing": result.favourable_timing,
+                    "challenging_timing": result.challenging_timing,
                     "supporting_factors": [
                         evidence_dict(item) for item in result.supporting_factors
                     ],

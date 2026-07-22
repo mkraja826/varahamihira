@@ -27,9 +27,7 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     }
     weighted_dasha = {
         "profile_id": "varahamihira_v1",
-        "weighted_strength": {
-            "calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1"
-        },
+        "weighted_strength": {"calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1"},
         "dasha": {
             "levels": [
                 {
@@ -44,7 +42,14 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
                             "rule_ids": ["VM-BJ-C02-DIGNITY-001"],
                         }
                     ],
-                    "contextual_evidence": [],
+                    "contextual_evidence": [
+                        {
+                            "fact": "owned_houses",
+                            "value": "2,3",
+                            "reason": "Synthetic house ownership fixture.",
+                            "rule_ids": [],
+                        }
+                    ],
                 },
                 {
                     "level": "antardasha",
@@ -92,3 +97,19 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     assert by_domain["overall"].outlook is Outlook.MIXED
     assert len(by_domain["overall"].supporting_factors) == 1
     assert len(by_domain["overall"].challenging_factors) == 1
+    assert set(by_domain) == {
+        "career",
+        "education_creativity",
+        "family_home",
+        "money_resources",
+        "overall",
+        "relationships_marriage",
+        "spirituality",
+        "travel_change",
+        "wellbeing",
+    }
+    assert by_domain["money_resources"].outlook is Outlook.CHALLENGING
+    assert by_domain["travel_change"].outlook is Outlook.CHALLENGING
+    assert by_domain["family_home"].outlook is Outlook.INSUFFICIENT
+    assert by_domain["career"].challenging_timing
+    assert by_domain["family_home"].favourable_timing is None

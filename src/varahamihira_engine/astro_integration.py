@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from typing import Any
 
 from .models import Evidence, Polarity, PredictionRequest
@@ -11,6 +12,17 @@ _LEVEL_WEIGHTS = {
     "antardasha": 0.30,
     "pratyantardasha": 0.20,
     "sookshma": 0.10,
+}
+
+_LIFE_DOMAINS = {
+    "career": frozenset({10}),
+    "money_resources": frozenset({2, 11}),
+    "relationships_marriage": frozenset({7}),
+    "family_home": frozenset({4}),
+    "education_creativity": frozenset({5}),
+    "wellbeing": frozenset({1, 6}),
+    "travel_change": frozenset({3, 9, 12}),
+    "spirituality": frozenset({9, 12}),
 }
 
 
@@ -96,6 +108,19 @@ def _dasha_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
         level_weight = _LEVEL_WEIGHTS.get(level_name)
         if level_weight is None or not lord:
             continue
+        contextual_facts = _sequence(
+            level.get("contextual_evidence", []), f"{level_name}.contextual_evidence"
+        )
+        owned_houses: set[int] = set()
+        for raw_context in contextual_facts:
+            context = _mapping(raw_context, "dasha contextual evidence")
+            if str(context.get("fact", "")).strip() == "owned_houses":
+                for item in str(context.get("value", "")).split(","):
+                    with suppress(ValueError):
+                        owned_houses.add(int(item.strip()))
+        relevant_domains = {
+            domain for domain, houses in _LIFE_DOMAINS.items() if houses & owned_houses
+        }
         for category, polarity in (
             ("supporting_evidence", Polarity.SUPPORTING),
             ("challenging_evidence", Polarity.CHALLENGING),
@@ -108,24 +133,59 @@ def _dasha_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
                 value = str(fact.get("value", "")).strip()
                 reason = str(fact.get("reason", "")).strip()
                 rule_ids = _strings(fact.get("rule_ids"))
-                evidence.append(
-                    Evidence(
-                        evidence_id=(
-                            f"dasha-{level_index + 1}-{category}-{fact_index + 1}"
-                        ),
-                        domain="overall",
-                        statement=(
-                            f"{level_name} lord {lord}: {fact_name}"
-                            + (f" ({value})" if value else "")
-                        ),
-                        polarity=polarity,
-                        weight=level_weight if polarity is not Polarity.CONTEXTUAL else 0.0,
-                        source_rule_ids=rule_ids,
-                        source_kind="classical" if rule_ids else "convention",
-                        reason=reason or "Active-daśā evidence supplied by Astro.",
-                    )
+                base = Evidence(
+                    evidence_id=(f"dasha-{level_index + 1}-{category}-{fact_index + 1}"),
+                    domain="overall",
+                    statement=(
+                        f"{level_name} lord {lord}: {fact_name}" + (f" ({value})" if value else "")
+                    ),
+                    polarity=polarity,
+                    weight=level_weight if polarity is not Polarity.CONTEXTUAL else 0.0,
+                    source_rule_ids=rule_ids,
+                    source_kind="classical" if rule_ids else "convention",
+                    reason=reason or "Active-daśā evidence supplied by Astro.",
                 )
+                evidence.append(base)
+                for domain in sorted(relevant_domains):
+                    relevant_houses = ",".join(
+                        str(h) for h in sorted(owned_houses & _LIFE_DOMAINS[domain])
+                    )
+                    evidence.append(
+                        Evidence(
+                            evidence_id=f"{base.evidence_id}-{domain}",
+                            domain=domain,
+                            statement=base.statement,
+                            polarity=base.polarity,
+                            weight=base.weight,
+                            source_rule_ids=base.source_rule_ids,
+                            source_kind=base.source_kind,
+                            reason=(
+                                f"{base.reason} Applied to {domain.replace('_', ' ')} because "
+                                f"the active {level_name} lord owns relevant house(s): "
+                                f"{relevant_houses}."
+                            ),
+                        )
+                    )
     return evidence
+
+
+def _coverage_evidence() -> list[Evidence]:
+    return [
+        Evidence(
+            evidence_id=f"coverage-{domain}",
+            domain=domain,
+            statement=(
+                f"{domain.replace('_', ' ').title()} is evaluated only from traceable "
+                "active-daśā and house-lord evidence currently available."
+            ),
+            polarity=Polarity.CONTEXTUAL,
+            weight=0.0,
+            source_rule_ids=(),
+            source_kind="convention",
+            reason="Coverage marker; it does not create a favourable or negative score.",
+        )
+        for domain in ("overall", *_LIFE_DOMAINS)
+    ]
 
 
 def request_from_astro_analysis(
@@ -151,7 +211,9 @@ def request_from_astro_analysis(
     if calculation_profile != ASTRO_PROFILE:
         raise ValueError("Astro calculation profile mismatch")
 
-    evidence = _career_evidence(weighted_career) + _dasha_evidence(weighted_dasha)
+    evidence = (
+        _coverage_evidence() + _career_evidence(weighted_career) + _dasha_evidence(weighted_dasha)
+    )
     if not evidence:
         raise ValueError("Astro analysis produced no evaluable evidence")
 
