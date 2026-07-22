@@ -1,0 +1,94 @@
+from varahamihira_engine import Outlook, evaluate
+from varahamihira_engine.astro_integration import request_from_astro_analysis
+
+
+def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_either() -> None:
+    weighted_career = {
+        "profile_id": "varahamihira_v1",
+        "career": {
+            "candidates": [
+                {
+                    "graha": "Saturn",
+                    "rule_ids": ["VM-BJ-C10-VOCATION-JUPITER-SATURN-001"],
+                }
+            ]
+        },
+        "candidate_strengths": [
+            {
+                "graha": "Saturn",
+                "repetition_count": 2,
+                "strength": {
+                    "available": True,
+                    "total_score": -4.0,
+                    "reason": "Synthetic debilitated fixture.",
+                },
+            }
+        ],
+    }
+    weighted_dasha = {
+        "profile_id": "varahamihira_v1",
+        "weighted_strength": {
+            "calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1"
+        },
+        "dasha": {
+            "levels": [
+                {
+                    "level": "mahadasha",
+                    "lord": "Saturn",
+                    "supporting_evidence": [],
+                    "challenging_evidence": [
+                        {
+                            "fact": "dignity",
+                            "value": "debilitation",
+                            "reason": "Synthetic adverse fixture.",
+                            "rule_ids": ["VM-BJ-C02-DIGNITY-001"],
+                        }
+                    ],
+                    "contextual_evidence": [],
+                },
+                {
+                    "level": "antardasha",
+                    "lord": "Jupiter",
+                    "supporting_evidence": [
+                        {
+                            "fact": "own_sign",
+                            "value": "true",
+                            "reason": "Synthetic supporting fixture.",
+                            "rule_ids": ["VM-BJ-C02-DIGNITY-001"],
+                        }
+                    ],
+                    "challenging_evidence": [],
+                    "contextual_evidence": [],
+                },
+                {
+                    "level": "pratyantardasha",
+                    "lord": "Moon",
+                    "supporting_evidence": [],
+                    "challenging_evidence": [],
+                    "contextual_evidence": [],
+                },
+                {
+                    "level": "sookshma",
+                    "lord": "Mercury",
+                    "supporting_evidence": [],
+                    "challenging_evidence": [],
+                    "contextual_evidence": [],
+                },
+            ]
+        },
+    }
+
+    request = request_from_astro_analysis(
+        period="daily",
+        as_of="2026-07-23T12:00:00+05:30",
+        weighted_career=weighted_career,
+        weighted_dasha=weighted_dasha,
+    )
+    response = evaluate(request)
+    by_domain = {result.domain: result for result in response.results}
+
+    assert by_domain["career"].outlook is Outlook.CHALLENGING
+    assert "negative" in by_domain["career"].statement
+    assert by_domain["overall"].outlook is Outlook.MIXED
+    assert len(by_domain["overall"].supporting_factors) == 1
+    assert len(by_domain["overall"].challenging_factors) == 1
