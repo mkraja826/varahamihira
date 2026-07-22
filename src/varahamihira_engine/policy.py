@@ -1,4 +1,4 @@
-ENGINE_VERSION = "horos_brihat_jataka_v2"
+ENGINE_VERSION = "horos_brihat_jataka_v3_dev"
 ASTRO_PROFILE = "south_indian_drik_lahiri_jpl_de440s_v1"
 CLASSICAL_PROFILE = "varahamihira_v1"
 

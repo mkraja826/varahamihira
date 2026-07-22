@@ -27,7 +27,38 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     }
     weighted_dasha = {
         "profile_id": "varahamihira_v1",
-        "weighted_strength": {"calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1"},
+        "weighted_strength": {
+            "calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1",
+            "raw_strength": {
+                "grahas": [
+                    {"graha": name, "d1_sign_index": index, "d1_house": index}
+                    for index, name in enumerate(
+                        ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"],
+                        start=1,
+                    )
+                ]
+            },
+            "weighted_grahas": [
+                {
+                    "graha": name,
+                    "total_score": score,
+                    "components": [
+                        {
+                            "classical_rule_ids": ["VM-BJ-C02-DIGNITY-001"],
+                        }
+                    ],
+                }
+                for name, score in {
+                    "sun": 2.0,
+                    "moon": 3.0,
+                    "mars": -8.0,
+                    "mercury": 1.0,
+                    "jupiter": 4.0,
+                    "venus": -4.0,
+                    "saturn": 2.0,
+                }.items()
+            ],
+        },
         "dasha": {
             "levels": [
                 {
@@ -109,7 +140,9 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
         "wellbeing",
     }
     assert by_domain["money_resources"].outlook is Outlook.CHALLENGING
-    assert by_domain["travel_change"].outlook is Outlook.CHALLENGING
-    assert by_domain["family_home"].outlook is Outlook.INSUFFICIENT
+    assert by_domain["travel_change"].outlook is Outlook.MIXED
+    assert by_domain["family_home"].outlook is Outlook.MIXED
     assert by_domain["career"].challenging_timing
-    assert by_domain["family_home"].favourable_timing is None
+    assert by_domain["wellbeing"].outlook is Outlook.CHALLENGING
+    assert by_domain["spirituality"].outlook is Outlook.FAVOURABLE
+    assert len(by_domain["spirituality"].supporting_factors) == 1

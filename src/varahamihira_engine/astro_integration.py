@@ -25,6 +25,23 @@ _LIFE_DOMAINS = {
     "spirituality": frozenset({9, 12}),
 }
 
+_SIGN_RULERS = {
+    1: "mars",
+    2: "venus",
+    3: "mercury",
+    4: "moon",
+    5: "sun",
+    6: "mercury",
+    7: "venus",
+    8: "mars",
+    9: "jupiter",
+    10: "saturn",
+    11: "saturn",
+    12: "jupiter",
+}
+
+_NATAL_LORD_CHANNEL_FACTOR = 0.60
+
 
 def _mapping(value: Any, field: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
@@ -46,6 +63,85 @@ def _strings(value: Any) -> tuple[str, ...]:
 
 def _score_weight(score: float) -> float:
     return round(min(1.0, max(0.1, abs(score) / 8.0)), 6)
+
+
+def _ascendant_sign(raw_grahas: Sequence[Any]) -> int:
+    inferred: set[int] = set()
+    for raw in raw_grahas:
+        graha = _mapping(raw, "raw strength graha")
+        sign = int(graha.get("d1_sign_index", 0))
+        house = int(graha.get("d1_house", 0))
+        if 1 <= sign <= 12 and 1 <= house <= 12:
+            inferred.add(((sign - house) % 12) + 1)
+    if len(inferred) != 1:
+        raise ValueError("Astro strength facts do not imply one ascendant sign")
+    return inferred.pop()
+
+
+def _component_rule_ids(weighted: Mapping[str, Any]) -> tuple[str, ...]:
+    result: set[str] = set()
+    for raw in _sequence(weighted.get("components", []), "weighted graha components"):
+        component = _mapping(raw, "weighted graha component")
+        result.update(_strings(component.get("classical_rule_ids")))
+    return tuple(sorted(result))
+
+
+def _natal_domain_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
+    strength = _mapping(weighted_dasha.get("weighted_strength"), "weighted_dasha.weighted_strength")
+    raw_strength = _mapping(strength.get("raw_strength"), "weighted_strength.raw_strength")
+    raw_grahas = _sequence(raw_strength.get("grahas"), "raw_strength.grahas")
+    ascendant = _ascendant_sign(raw_grahas)
+    weighted_grahas = {
+        str(item.get("graha", "")).strip().lower(): item
+        for raw in _sequence(strength.get("weighted_grahas"), "weighted_strength.weighted_grahas")
+        if (item := _mapping(raw, "weighted graha"))
+    }
+
+    evidence: list[Evidence] = []
+    for domain, houses in _LIFE_DOMAINS.items():
+        houses_by_lord: dict[str, list[int]] = {}
+        for house in sorted(houses):
+            sign = ((ascendant + house - 2) % 12) + 1
+            houses_by_lord.setdefault(_SIGN_RULERS[sign], []).append(house)
+        for lord, ruled_houses in sorted(houses_by_lord.items()):
+            weighted = weighted_grahas.get(lord)
+            if weighted is None:
+                continue
+            score = float(weighted.get("total_score", 0.0))
+            polarity = (
+                Polarity.SUPPORTING
+                if score > 0
+                else Polarity.CHALLENGING
+                if score < 0
+                else Polarity.CONTEXTUAL
+            )
+            weight = (
+                round(_score_weight(score) * _NATAL_LORD_CHANNEL_FACTOR, 6)
+                if polarity is not Polarity.CONTEXTUAL
+                else 0.0
+            )
+            houses_text = ",".join(str(house) for house in ruled_houses)
+            evidence.append(
+                Evidence(
+                    evidence_id=f"natal-house-lord-{domain}-{lord}",
+                    domain=domain,
+                    statement=(
+                        f"{lord.title()}, lord of relevant house(s) {houses_text}, has "
+                        f"controlled natal strength {score:.2f}."
+                    ),
+                    polarity=polarity,
+                    weight=weight,
+                    source_rule_ids=_component_rule_ids(weighted),
+                    source_kind="convention",
+                    reason=(
+                        "Natal house-lord channel. Direction follows the transparent strength "
+                        "score; weight = normalized absolute score × "
+                        f"{_NATAL_LORD_CHANNEL_FACTOR:.2f}. "
+                        "This is an API synthesis convention, not a classical textual formula."
+                    ),
+                )
+            )
+    return evidence
 
 
 def _career_evidence(weighted_career: Mapping[str, Any]) -> list[Evidence]:
@@ -212,7 +308,10 @@ def request_from_astro_analysis(
         raise ValueError("Astro calculation profile mismatch")
 
     evidence = (
-        _coverage_evidence() + _career_evidence(weighted_career) + _dasha_evidence(weighted_dasha)
+        _coverage_evidence()
+        + _natal_domain_evidence(weighted_dasha)
+        + _career_evidence(weighted_career)
+        + _dasha_evidence(weighted_dasha)
     )
     if not evidence:
         raise ValueError("Astro analysis produced no evaluable evidence")
