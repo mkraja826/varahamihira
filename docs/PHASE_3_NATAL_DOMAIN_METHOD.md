@@ -136,6 +136,22 @@ duplicate-evidence rules, reference fixtures, and external review.
 - Natal and active-daśā evidence may describe capacity and broad activation, but cannot by
   themselves be relabeled as a daily, weekly, or monthly transit window.
 
+## Phase 3B sampled transit channel
+
+The adapter accepts only the frozen Astro sample counts: four for daily, seven for weekly,
+and thirty for monthly. Every sample must contain exactly the seven classical Grahas and
+must preserve `VM-BJ-C09-TRANSIT-BAV-BALANCE-001`. Rahu and Ketu remain excluded.
+
+For each Graha and domain, the source-provided normalized BAV balance contributes only while
+the sampled transit sign occupies one of that domain's relevant whole-sign houses. The sum is
+divided by the total horizon sample count, so a brief exposure cannot count like a full-period
+exposure. The resulting mean is multiplied by `0.30`.
+
+The dot/line balance is source-registered. House-to-domain mapping, horizon averaging, and the
+`0.30` channel factor are explicit API conventions. The adapter rejects wrong sample counts,
+duplicate or missing Grahas, contradictory polarity, absent rule IDs, out-of-range balances,
+and any claim that exact ingress/egress was calculated.
+
 ## Phase 3D validation requirements
 
 Before production release, this method requires synthetic polarity tests, reference-chart
