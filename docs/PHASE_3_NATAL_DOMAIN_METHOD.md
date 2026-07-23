@@ -152,6 +152,27 @@ The dot/line balance is source-registered. House-to-domain mapping, horizon aver
 duplicate or missing Grahas, contradictory polarity, absent rule IDs, out-of-range balances,
 and any claim that exact ingress/egress was calculated.
 
+## Phase 3C channel balance
+
+Directional evidence is first deduplicated, then separated into natal, daśā, and transit
+channels. Within each channel, raw supporting plus challenging weight is capped at one before
+the channel coefficient is applied:
+
+| Channel | Coefficient |
+| --- | ---: |
+| Natal capacity | 0.50 |
+| Active daśā | 0.30 |
+| Sampled transit | 0.20 |
+
+This prevents the number of trace records from becoming an accidental vote count. A transit
+channel cannot overturn strong natal and daśā agreement by itself. Supporting and challenging
+parts are scaled together, so internal conflict is retained.
+
+Every domain exposes raw and balanced channel scores, `conflict_status`, and
+`confidence_status`. Confidence is deliberately named `uncalibrated_low` or
+`uncalibrated_moderate`; no high-confidence label is available before Phase 3D external and
+prospective validation.
+
 ## Phase 3D validation requirements
 
 Before production release, this method requires synthetic polarity tests, reference-chart
