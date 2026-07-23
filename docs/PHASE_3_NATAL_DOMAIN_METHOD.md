@@ -51,8 +51,31 @@ planet-strength fact for the same domain. The engine keeps the strongest trace, 
 corroborating evidence identifier, and does not add both weights. Conflicting polarities under
 one independence key are rejected as a modelling error.
 
-Aspect, significator, varga, and cancellation channels remain disabled until their formulas,
-source boundaries, and duplicate-evidence rules are specified and tested.
+## Natal aspect channel
+
+The seven classical Grahas use the Bṛhat Jātaka 2.13 whole-sign table:
+
+| Relative house | General fraction |
+| ---: | ---: |
+| 3, 10 | 1/4 |
+| 5, 9 | 1/2 |
+| 4, 8 | 3/4 |
+| 7 | Full |
+
+Mars receives full 4th/8th aspects, Jupiter full 5th/9th aspects, and Saturn full
+3rd/10th aspects. Rahu and Ketu are excluded from this seven-Graha pass.
+
+An aspect reaching a relevant domain house uses:
+
+`min(1, max(0.1, abs(score) / 8)) * aspect_fraction * 0.20`
+
+Aspect geometry is classical; converting the source Graha's controlled strength into a
+directional domain weight is an API convention. House-lord, occupant, and aspect traces share
+the same independence key when they use the same source planet-strength fact for one domain.
+The strongest trace is scored once and all corroborating evidence identifiers remain visible.
+
+Significator, varga, and cancellation channels remain disabled until their formulas, source
+boundaries, and duplicate-evidence rules are specified and tested.
 
 ## Abstention and conflict
 

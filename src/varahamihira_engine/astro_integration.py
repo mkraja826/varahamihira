@@ -40,8 +40,28 @@ _SIGN_RULERS = {
     12: "jupiter",
 }
 
+_CLASSICAL_GRAHAS = frozenset(
+    {"sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"}
+)
+_GENERAL_ASPECTS = (
+    (3, 0.25, "quarter"),
+    (4, 0.75, "three-quarters"),
+    (5, 0.50, "half"),
+    (7, 1.00, "full"),
+    (8, 0.75, "three-quarters"),
+    (9, 0.50, "half"),
+    (10, 0.25, "quarter"),
+)
+_SPECIAL_FULL_ASPECTS = {
+    "mars": frozenset({4, 8}),
+    "jupiter": frozenset({5, 9}),
+    "saturn": frozenset({3, 10}),
+}
+_GENERAL_ASPECT_RULE_ID = "VM-BJ-C02-ASPECT-STRENGTH-EVAL-001"
+_SPECIAL_ASPECT_RULE_ID = "VM-BJ-C02-SPECIAL-ASPECT-EVAL-001"
 _NATAL_LORD_CHANNEL_FACTOR = 0.60
 _NATAL_OCCUPANT_CHANNEL_FACTOR = 0.40
+_NATAL_ASPECT_CHANNEL_FACTOR = 0.20
 
 
 def _mapping(value: Any, field: str) -> Mapping[str, Any]:
@@ -210,6 +230,96 @@ def _natal_occupant_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence
                     independence_key=f"natal-{domain}-{name}-controlled-strength",
                 )
             )
+    return evidence
+
+
+def _natal_aspect_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
+    strength = _mapping(
+        weighted_dasha.get("weighted_strength"),
+        "weighted_dasha.weighted_strength",
+    )
+    raw_strength = _mapping(strength.get("raw_strength"), "weighted_strength.raw_strength")
+    raw_grahas = _sequence(raw_strength.get("grahas"), "raw_strength.grahas")
+    ascendant = _ascendant_sign(raw_grahas)
+    weighted_grahas = {
+        str(item.get("graha", "")).strip().lower(): item
+        for raw in _sequence(
+            strength.get("weighted_grahas"),
+            "weighted_strength.weighted_grahas",
+        )
+        if (item := _mapping(raw, "weighted graha"))
+    }
+
+    evidence: list[Evidence] = []
+    seen: set[tuple[str, str, int, int]] = set()
+    for raw in raw_grahas:
+        graha = _mapping(raw, "raw strength graha")
+        name = str(graha.get("graha", "")).strip().lower()
+        source_sign = int(graha.get("d1_sign_index", 0))
+        weighted = weighted_grahas.get(name)
+        if (
+            name not in _CLASSICAL_GRAHAS
+            or not 1 <= source_sign <= 12
+            or weighted is None
+        ):
+            continue
+        score = float(weighted.get("total_score", 0.0))
+        polarity = (
+            Polarity.SUPPORTING
+            if score > 0
+            else Polarity.CHALLENGING
+            if score < 0
+            else Polarity.CONTEXTUAL
+        )
+        for relative_house, general_fraction, general_label in _GENERAL_ASPECTS:
+            special = relative_house in _SPECIAL_FULL_ASPECTS.get(name, ())
+            fraction = 1.0 if special else general_fraction
+            label = "full" if special else general_label
+            target_sign = ((source_sign + relative_house - 2) % 12) + 1
+            target_house = ((target_sign - ascendant) % 12) + 1
+            for domain, relevant_houses in _LIFE_DOMAINS.items():
+                identity = (domain, name, relative_house, target_house)
+                if target_house not in relevant_houses or identity in seen:
+                    continue
+                seen.add(identity)
+                weight = (
+                    round(
+                        _score_weight(score)
+                        * fraction
+                        * _NATAL_ASPECT_CHANNEL_FACTOR,
+                        6,
+                    )
+                    if polarity is not Polarity.CONTEXTUAL
+                    else 0.0
+                )
+                rule_ids = {_GENERAL_ASPECT_RULE_ID, *_component_rule_ids(weighted)}
+                if special:
+                    rule_ids.add(_SPECIAL_ASPECT_RULE_ID)
+                evidence.append(
+                    Evidence(
+                        evidence_id=(
+                            f"natal-aspect-{domain}-{name}-"
+                            f"{relative_house}-to-{target_house}"
+                        ),
+                        domain=domain,
+                        statement=(
+                            f"{name.title()} casts a {label} classical aspect to relevant "
+                            f"house {target_house} with controlled natal strength {score:.2f}."
+                        ),
+                        polarity=polarity,
+                        weight=weight,
+                        source_rule_ids=tuple(sorted(rule_ids)),
+                        source_kind="convention",
+                        reason=(
+                            "Aspect geometry and fractional strength follow Brihat Jataka "
+                            "2.13. Direction follows the source Graha's controlled strength; "
+                            "weight = normalized absolute score × aspect fraction × "
+                            f"{_NATAL_ASPECT_CHANNEL_FACTOR:.2f}. The final directional "
+                            "weight is an API synthesis convention, not a classical formula."
+                        ),
+                        independence_key=f"natal-{domain}-{name}-controlled-strength",
+                    )
+                )
     return evidence
 
 
@@ -390,6 +500,7 @@ def request_from_astro_analysis(
         _coverage_evidence()
         + _natal_domain_evidence(weighted_dasha)
         + _natal_occupant_evidence(weighted_dasha)
+        + _natal_aspect_evidence(weighted_dasha)
         + _career_evidence(weighted_career)
         + _dasha_evidence(weighted_dasha)
     )

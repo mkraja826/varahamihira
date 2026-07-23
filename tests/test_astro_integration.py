@@ -144,9 +144,30 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     assert by_domain["family_home"].outlook is Outlook.FAVOURABLE
     assert by_domain["career"].challenging_timing
     assert by_domain["wellbeing"].outlook is Outlook.CHALLENGING
-    assert by_domain["spirituality"].outlook is Outlook.FAVOURABLE
-    assert len(by_domain["spirituality"].supporting_factors) == 1
+    assert by_domain["spirituality"].outlook is Outlook.MIXED
+    assert (
+        sum(
+            factor.independence_key
+            == "natal-spirituality-jupiter-controlled-strength"
+            for factor in (
+                *by_domain["spirituality"].supporting_factors,
+                *by_domain["spirituality"].challenging_factors,
+            )
+        )
+        == 1
+    )
     assert any(
         factor.evidence_id.startswith("natal-occupant-")
         for factor in by_domain["family_home"].supporting_factors
     )
+    assert any(
+        factor.evidence_id.startswith("natal-aspect-career-mars-8-to-10")
+        for factor in by_domain["career"].challenging_factors
+    )
+    mars_aspect = next(
+        factor
+        for factor in by_domain["career"].challenging_factors
+        if factor.evidence_id.startswith("natal-aspect-career-mars-8-to-10")
+    )
+    assert mars_aspect.weight == 0.2
+    assert "VM-BJ-C02-SPECIAL-ASPECT-EVAL-001" in mars_aspect.source_rule_ids
