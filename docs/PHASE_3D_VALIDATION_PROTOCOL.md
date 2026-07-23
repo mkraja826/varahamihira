@@ -24,3 +24,6 @@ The engine exposes `confidence_status` as `uncalibrated_*` until prospective
 measurement supports a versioned calibration model. Internal weights must never
 be described as probabilities. A Phase 3D release remains blocked while either
 human gate is pending.
+
+The repository CI result for the exact release commit is also a required
+automated gate; passing tests from an earlier commit cannot promote a build.
