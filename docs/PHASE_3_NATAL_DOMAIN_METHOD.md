@@ -136,6 +136,43 @@ duplicate-evidence rules, reference fixtures, and external review.
 - Natal and active-daśā evidence may describe capacity and broad activation, but cannot by
   themselves be relabeled as a daily, weekly, or monthly transit window.
 
+## Phase 3B sampled transit channel
+
+The adapter accepts only the frozen Astro sample counts: four for daily, seven for weekly,
+and thirty for monthly. Every sample must contain exactly the seven classical Grahas and
+must preserve `VM-BJ-C09-TRANSIT-BAV-BALANCE-001`. Rahu and Ketu remain excluded.
+
+For each Graha and domain, the source-provided normalized BAV balance contributes only while
+the sampled transit sign occupies one of that domain's relevant whole-sign houses. The sum is
+divided by the total horizon sample count, so a brief exposure cannot count like a full-period
+exposure. The resulting mean is multiplied by `0.30`.
+
+The dot/line balance is source-registered. House-to-domain mapping, horizon averaging, and the
+`0.30` channel factor are explicit API conventions. The adapter rejects wrong sample counts,
+duplicate or missing Grahas, contradictory polarity, absent rule IDs, out-of-range balances,
+and any claim that exact ingress/egress was calculated.
+
+## Phase 3C channel balance
+
+Directional evidence is first deduplicated, then separated into natal, daśā, and transit
+channels. Within each channel, raw supporting plus challenging weight is capped at one before
+the channel coefficient is applied:
+
+| Channel | Coefficient |
+| --- | ---: |
+| Natal capacity | 0.50 |
+| Active daśā | 0.30 |
+| Sampled transit | 0.20 |
+
+This prevents the number of trace records from becoming an accidental vote count. A transit
+channel cannot overturn strong natal and daśā agreement by itself. Supporting and challenging
+parts are scaled together, so internal conflict is retained.
+
+Every domain exposes raw and balanced channel scores, `conflict_status`, and
+`confidence_status`. Confidence is deliberately named `uncalibrated_low` or
+`uncalibrated_moderate`; no high-confidence label is available before Phase 3D external and
+prospective validation.
+
 ## Phase 3D validation requirements
 
 Before production release, this method requires synthetic polarity tests, reference-chart

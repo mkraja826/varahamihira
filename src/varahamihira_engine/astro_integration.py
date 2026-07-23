@@ -65,6 +65,8 @@ _CANCELLATION_BOUNDARY_RULE_ID = "VM-BJ-C02-CANCELLATION-SOURCE-BOUNDARY-001"
 _NATAL_LORD_CHANNEL_FACTOR = 0.60
 _NATAL_OCCUPANT_CHANNEL_FACTOR = 0.40
 _NATAL_ASPECT_CHANNEL_FACTOR = 0.20
+_TRANSIT_CHANNEL_FACTOR = 0.30
+_EXPECTED_TRANSIT_SAMPLES = {"daily": 4, "weekly": 7, "monthly": 30}
 
 
 def _mapping(value: Any, field: str) -> Mapping[str, Any]:
@@ -604,6 +606,122 @@ def _apply_cancellation_boundary(
     return result
 
 
+def _transit_evidence(
+    period: str,
+    transit_horizon: Mapping[str, Any],
+) -> list[Evidence]:
+    if str(transit_horizon.get("period", "")) != period:
+        raise ValueError("Astro transit horizon period mismatch")
+    samples = _sequence(transit_horizon.get("samples"), "transit_horizon.samples")
+    expected = _EXPECTED_TRANSIT_SAMPLES.get(period)
+    if expected is None or len(samples) != expected:
+        raise ValueError("Astro transit horizon sample count mismatch")
+    if int(transit_horizon.get("sample_count", 0)) != len(samples):
+        raise ValueError("Astro transit horizon declared count mismatch")
+    if not bool(transit_horizon.get("sampling_applied")):
+        raise ValueError("Astro transit horizon was not sampled")
+    if bool(transit_horizon.get("exact_ingress_egress_applied")):
+        raise ValueError("Astro transit horizon exceeds the sampled-time contract")
+
+    by_domain_body: dict[tuple[str, str], list[float]] = {}
+    rule_ids: dict[tuple[str, str], set[str]] = {}
+    exposure_count: dict[tuple[str, str], int] = {}
+    overall_by_body: dict[str, list[float]] = {}
+    overall_rule_ids: dict[str, set[str]] = {}
+    for raw_sample in samples:
+        sample = _mapping(raw_sample, "transit horizon sample")
+        factors = _sequence(sample.get("factors"), "transit horizon sample factors")
+        if len(factors) != 7:
+            raise ValueError("Astro transit horizon must contain seven Graha factors")
+        seen_bodies: set[str] = set()
+        for raw_factor in factors:
+            factor = _mapping(raw_factor, "transit horizon factor")
+            body = str(factor.get("body", "")).strip().lower()
+            if body not in _CLASSICAL_GRAHAS or body in seen_bodies:
+                raise ValueError("Astro transit horizon Graha set is invalid")
+            seen_bodies.add(body)
+            balance = float(factor.get("normalized_balance", 0.0))
+            if not -1.0 <= balance <= 1.0:
+                raise ValueError("Astro transit balance is outside the source contract")
+            declared = str(factor.get("polarity", ""))
+            actual = (
+                "supporting"
+                if balance > 0
+                else "challenging"
+                if balance < 0
+                else "contextual"
+            )
+            if declared != actual:
+                raise ValueError("Astro transit polarity contradicts its balance")
+            factor_rule_ids = set(_strings(factor.get("rule_ids")))
+            if "VM-BJ-C09-TRANSIT-BAV-BALANCE-001" not in factor_rule_ids:
+                raise ValueError("Astro transit balance rule ID is missing")
+            overall_by_body.setdefault(body, []).append(balance)
+            overall_rule_ids.setdefault(body, set()).update(factor_rule_ids)
+            house = int(factor.get("house_from_natal_ascendant", 0))
+            for domain, houses in _LIFE_DOMAINS.items():
+                key = (domain, body)
+                by_domain_body.setdefault(key, []).append(
+                    balance if house in houses else 0.0
+                )
+                rule_ids.setdefault(key, set()).update(factor_rule_ids)
+                if house in houses:
+                    exposure_count[key] = exposure_count.get(key, 0) + 1
+
+    evidence: list[Evidence] = []
+    aggregates = {
+        **{
+            ("overall", body): values
+            for body, values in overall_by_body.items()
+        },
+        **by_domain_body,
+    }
+    aggregate_rules = {
+        **{
+            ("overall", body): values
+            for body, values in overall_rule_ids.items()
+        },
+        **rule_ids,
+    }
+    for (domain, body), values in sorted(aggregates.items()):
+        mean = round(sum(values) / len(samples), 6)
+        if mean == 0.0:
+            continue
+        polarity = Polarity.SUPPORTING if mean > 0 else Polarity.CHALLENGING
+        weight = round(abs(mean) * _TRANSIT_CHANNEL_FACTOR, 6)
+        exposures = (
+            len(samples)
+            if domain == "overall"
+            else exposure_count.get((domain, body), 0)
+        )
+        evidence.append(
+            Evidence(
+                evidence_id=f"transit-{period}-{domain}-{body}-bav-balance",
+                domain=domain,
+                statement=(
+                    f"{body.title()} has mean Chapter 9 transit balance {mean:.3f} "
+                    f"across {exposures}/{len(samples)} relevant sampled instants."
+                ),
+                polarity=polarity,
+                weight=weight,
+                source_rule_ids=tuple(
+                    sorted(aggregate_rules[(domain, body)])
+                ),
+                source_kind="convention",
+                reason=(
+                    "Planet-specific direction follows the source-registered "
+                    "Bhinnashtakavarga dot/line balance. Mapping sampled transit houses "
+                    "to a life domain and multiplying the exposure-normalized mean by "
+                    f"{_TRANSIT_CHANNEL_FACTOR:.2f} are API conventions."
+                ),
+                independence_key=(
+                    f"transit-{period}-{domain}-{body}-bav-balance"
+                ),
+            )
+        )
+    return evidence
+
+
 def _coverage_evidence() -> list[Evidence]:
     evidence = [
         Evidence(
@@ -650,6 +768,7 @@ def request_from_astro_analysis(
     as_of: str,
     weighted_career: Mapping[str, Any],
     weighted_dasha: Mapping[str, Any],
+    transit_horizon: Mapping[str, Any] | None = None,
 ) -> PredictionRequest:
     """Compose real Astro career and active-daśā evidence for deterministic evaluation."""
 
@@ -677,6 +796,9 @@ def request_from_astro_analysis(
     )
     evidence = _apply_d9_confirmation(evidence, weighted_dasha)
     evidence = _apply_cancellation_boundary(evidence, weighted_dasha)
+    timing_evidence_available = transit_horizon is not None
+    if transit_horizon is not None:
+        evidence.extend(_transit_evidence(period, transit_horizon))
     if not evidence:
         raise ValueError("Astro analysis produced no evaluable evidence")
 
@@ -686,4 +808,5 @@ def request_from_astro_analysis(
         calculation_profile=calculation_profile,
         classical_profile=CLASSICAL_PROFILE,
         evidence=tuple(evidence),
+        timing_evidence_available=timing_evidence_available,
     )

@@ -42,12 +42,15 @@ def test_negative_evidence_is_reported_directly_without_sugar_coating() -> None:
     ).results[0]
 
     assert result.outlook is Outlook.CHALLENGING
-    assert result.net_score == -0.6
+    assert result.net_score == -0.3
     assert "negative" in result.statement
     assert result.challenging_factors[0].evidence_id == "negative-1"
     assert result.timing_status == "unavailable"
     assert result.favourable_timing is None
     assert result.challenging_timing is None
+    assert result.channel_scores["natal"]["coefficient"] == 0.5
+    assert result.conflict_status == "none"
+    assert result.confidence_status == "uncalibrated_low"
 
 
 def test_timing_language_requires_explicit_timing_evidence() -> None:
@@ -148,7 +151,7 @@ def test_duplicate_underlying_fact_is_counted_once_and_retains_trace() -> None:
         )
     ).results[0]
 
-    assert result.supporting_score == 0.6
+    assert result.supporting_score == 0.3
     assert len(result.supporting_factors) == 1
     assert "occupant-channel" in result.supporting_factors[0].reason
 
@@ -171,3 +174,47 @@ def test_duplicate_underlying_fact_with_conflicting_polarity_fails_closed() -> N
                 ),
             )
         )
+
+
+def test_channels_are_capped_and_conflict_is_machine_visible() -> None:
+    result = evaluate(
+        PredictionRequest(
+            period="daily",
+            as_of="2026-07-23T00:00:00+05:30",
+            evidence=(
+                evidence(
+                    "natal-1",
+                    Polarity.SUPPORTING,
+                    1.0,
+                    independence_key="natal-career-sun-controlled-strength",
+                ),
+                evidence(
+                    "natal-2",
+                    Polarity.SUPPORTING,
+                    1.0,
+                    independence_key="natal-career-moon-controlled-strength",
+                ),
+                evidence(
+                    "dasha-1",
+                    Polarity.CHALLENGING,
+                    1.0,
+                    independence_key="dasha-current-career",
+                ),
+                evidence(
+                    "transit-1",
+                    Polarity.CHALLENGING,
+                    1.0,
+                    independence_key="transit-daily-career-saturn",
+                ),
+            ),
+            timing_evidence_available=True,
+        )
+    ).results[0]
+
+    assert result.supporting_score == 0.5
+    assert result.challenging_score == 0.5
+    assert result.outlook is Outlook.MIXED
+    assert result.conflict_status == "cross_channel_conflict"
+    assert result.confidence_status == "uncalibrated_low"
+    assert result.channel_scores["natal"]["raw_supporting"] == 2.0
+    assert result.channel_scores["natal"]["balanced_supporting"] == 0.5

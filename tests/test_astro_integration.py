@@ -137,12 +137,52 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
             ]
         },
     }
+    transit_horizon = {
+        "period": "daily",
+        "sample_count": 4,
+        "sampling_applied": True,
+        "exact_ingress_egress_applied": False,
+        "samples": [
+            {
+                "sample_index": sample_index,
+                "factors": [
+                    {
+                        "body": name,
+                        "house_from_natal_ascendant": house,
+                        "normalized_balance": balance,
+                        "polarity": (
+                            "supporting"
+                            if balance > 0
+                            else "challenging"
+                            if balance < 0
+                            else "contextual"
+                        ),
+                        "rule_ids": [
+                            "VM-BJ-C09-TRANSIT-BAV-BALANCE-001",
+                            f"VM-BJ-C09-{name.upper()}-BAV-001",
+                        ],
+                    }
+                    for name, house, balance in (
+                        ("sun", 1, 0.0),
+                        ("moon", 4, 0.25),
+                        ("mars", 10, -0.5),
+                        ("mercury", 5, 0.25),
+                        ("jupiter", 9, 0.5),
+                        ("venus", 7, -0.25),
+                        ("saturn", 10, -0.5),
+                    )
+                ],
+            }
+            for sample_index in range(1, 5)
+        ],
+    }
 
     request = request_from_astro_analysis(
         period="daily",
         as_of="2026-07-23T12:00:00+05:30",
         weighted_career=weighted_career,
         weighted_dasha=weighted_dasha,
+        transit_horizon=transit_horizon,
     )
     response = evaluate(request)
     by_domain = {result.domain: result for result in response.results}
@@ -150,8 +190,8 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     assert by_domain["career"].outlook is Outlook.CHALLENGING
     assert "negative" in by_domain["career"].statement
     assert by_domain["overall"].outlook is Outlook.MIXED
-    assert len(by_domain["overall"].supporting_factors) == 1
-    assert len(by_domain["overall"].challenging_factors) == 1
+    assert by_domain["overall"].supporting_factors
+    assert by_domain["overall"].challenging_factors
     assert set(by_domain) == {
         "career",
         "education_creativity",
@@ -164,11 +204,13 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
         "wellbeing",
     }
     assert by_domain["money_resources"].outlook is Outlook.CHALLENGING
-    assert by_domain["travel_change"].outlook is Outlook.CHALLENGING
+    assert by_domain["travel_change"].outlook is Outlook.MIXED
+    assert by_domain["travel_change"].conflict_status == "cross_channel_conflict"
     assert by_domain["family_home"].outlook is Outlook.MIXED
-    assert by_domain["career"].timing_status == "unavailable"
-    assert by_domain["career"].challenging_timing is None
-    assert by_domain["wellbeing"].outlook is Outlook.CHALLENGING
+    assert by_domain["family_home"].confidence_status == "uncalibrated_moderate"
+    assert by_domain["career"].timing_status == "evaluated"
+    assert by_domain["career"].challenging_timing
+    assert by_domain["wellbeing"].outlook is Outlook.MIXED
     assert by_domain["spirituality"].outlook is Outlook.MIXED
     assert (
         sum(
@@ -241,6 +283,13 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     assert "VM-BJ-C02-CANCELLATION-SOURCE-BOUNDARY-001" in (
         saturn_boundary.source_rule_ids
     )
+    transit_factor = next(
+        factor
+        for factor in by_domain["career"].challenging_factors
+        if factor.evidence_id == "transit-daily-career-saturn-bav-balance"
+    )
+    assert transit_factor.weight == 0.15
+    assert "VM-BJ-C09-TRANSIT-BAV-BALANCE-001" in transit_factor.source_rule_ids
 
     weighted_dasha["weighted_strength"]["weighted_grahas"][-1][
         "cancellation_adjustment"
@@ -254,4 +303,5 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
             as_of="2026-07-23T12:00:00+05:30",
             weighted_career=weighted_career,
             weighted_dasha=weighted_dasha,
+            transit_horizon=transit_horizon,
         )

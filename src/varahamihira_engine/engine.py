@@ -14,6 +14,7 @@ from .models import (
 from .policy import ASTROLOGY_DISCLAIMER, BLOCKED_DOMAINS, ENGINE_VERSION
 
 _DIRECTION_THRESHOLD = 0.25
+_CHANNEL_WEIGHTS = {"natal": 0.50, "dasha": 0.30, "transit": 0.20}
 
 
 def _deduplicate_evidence(evidence: tuple[Evidence, ...]) -> tuple[Evidence, ...]:
@@ -80,6 +81,79 @@ def _outlook(supporting: float, challenging: float) -> Outlook:
     if net <= -_DIRECTION_THRESHOLD:
         return Outlook.CHALLENGING
     return Outlook.MIXED
+
+
+def _evidence_channel(item: Evidence) -> str:
+    if item.independence_key.startswith("dasha-"):
+        return "dasha"
+    if item.independence_key.startswith("transit-"):
+        return "transit"
+    return "natal"
+
+
+def _channel_balanced_scores(
+    evidence: tuple[Evidence, ...],
+) -> tuple[float, float, dict[str, dict[str, float]], str, str]:
+    raw: dict[str, list[float]] = {
+        channel: [0.0, 0.0] for channel in _CHANNEL_WEIGHTS
+    }
+    for item in evidence:
+        if item.polarity is Polarity.CONTEXTUAL:
+            continue
+        channel = _evidence_channel(item)
+        index = 0 if item.polarity is Polarity.SUPPORTING else 1
+        raw[channel][index] += item.weight
+
+    channel_scores: dict[str, dict[str, float]] = {}
+    supporting = 0.0
+    challenging = 0.0
+    signs: set[int] = set()
+    directional_channels = 0
+    for channel, coefficient in _CHANNEL_WEIGHTS.items():
+        raw_supporting, raw_challenging = raw[channel]
+        raw_total = raw_supporting + raw_challenging
+        scale = min(1.0, raw_total) / raw_total if raw_total else 0.0
+        balanced_supporting = raw_supporting * scale * coefficient
+        balanced_challenging = raw_challenging * scale * coefficient
+        net = balanced_supporting - balanced_challenging
+        if raw_total:
+            directional_channels += 1
+        if net > 0:
+            signs.add(1)
+        elif net < 0:
+            signs.add(-1)
+        supporting += balanced_supporting
+        challenging += balanced_challenging
+        channel_scores[channel] = {
+            "raw_supporting": round(raw_supporting, 6),
+            "raw_challenging": round(raw_challenging, 6),
+            "balanced_supporting": round(balanced_supporting, 6),
+            "balanced_challenging": round(balanced_challenging, 6),
+            "net": round(net, 6),
+            "coefficient": coefficient,
+        }
+
+    conflict_status = (
+        "cross_channel_conflict"
+        if len(signs) > 1
+        else "none"
+        if signs
+        else "insufficient"
+    )
+    confidence_status = (
+        "insufficient"
+        if directional_channels == 0
+        else "uncalibrated_low"
+        if directional_channels == 1 or conflict_status == "cross_channel_conflict"
+        else "uncalibrated_moderate"
+    )
+    return (
+        round(supporting, 6),
+        round(challenging, 6),
+        channel_scores,
+        conflict_status,
+        confidence_status,
+    )
 
 
 def _statement(domain: str, outlook: Outlook, strength: str) -> str:
@@ -165,8 +239,13 @@ def _evaluate_domain(
     challenging = tuple(item for item in evidence if item.polarity is Polarity.CHALLENGING)
     contextual = tuple(item for item in evidence if item.polarity is Polarity.CONTEXTUAL)
 
-    supporting_score = round(sum(item.weight for item in supporting), 6)
-    challenging_score = round(sum(item.weight for item in challenging), 6)
+    (
+        supporting_score,
+        challenging_score,
+        channel_scores,
+        conflict_status,
+        confidence_status,
+    ) = _channel_balanced_scores(evidence)
     net_score = round(supporting_score - challenging_score, 6)
     outlook = _outlook(supporting_score, challenging_score)
     strength = _strength(supporting_score, challenging_score, net_score)
@@ -183,6 +262,9 @@ def _evaluate_domain(
         supporting_score=supporting_score,
         challenging_score=challenging_score,
         net_score=net_score,
+        channel_scores=channel_scores,
+        conflict_status=conflict_status,
+        confidence_status=confidence_status,
         statement=_statement(domain, outlook, strength),
         advisory=advisory,
         timing_status=timing_status,

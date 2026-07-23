@@ -75,6 +75,9 @@ class DomainResult:
     supporting_score: float
     challenging_score: float
     net_score: float
+    channel_scores: dict[str, dict[str, float]]
+    conflict_status: str
+    confidence_status: str
     statement: str
     advisory: str
     timing_status: str
@@ -123,6 +126,9 @@ class PredictionResponse:
                     "supporting_score": result.supporting_score,
                     "challenging_score": result.challenging_score,
                     "net_score": result.net_score,
+                    "channel_scores": result.channel_scores,
+                    "conflict_status": result.conflict_status,
+                    "confidence_status": result.confidence_status,
                     "statement": result.statement,
                     "advisory": result.advisory,
                     "timing_status": result.timing_status,
