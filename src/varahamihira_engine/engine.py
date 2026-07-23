@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import replace
 
 from .models import (
     DomainResult,
@@ -13,6 +14,51 @@ from .models import (
 from .policy import ASTROLOGY_DISCLAIMER, BLOCKED_DOMAINS, ENGINE_VERSION
 
 _DIRECTION_THRESHOLD = 0.25
+
+
+def _deduplicate_evidence(evidence: tuple[Evidence, ...]) -> tuple[Evidence, ...]:
+    """Count one directional contribution per underlying fact within a domain."""
+
+    grouped: dict[str, list[Evidence]] = defaultdict(list)
+    for item in evidence:
+        grouped[item.independence_key].append(item)
+
+    result: list[Evidence] = []
+    for independence_key in sorted(grouped):
+        candidates = grouped[independence_key]
+        polarities = {item.polarity for item in candidates}
+        if len(polarities) != 1:
+            raise ValueError(
+                "conflicting polarity for independent evidence key: "
+                f"{independence_key}"
+            )
+        winner = min(candidates, key=lambda item: (-item.weight, item.evidence_id))
+        if len(candidates) > 1:
+            corroborating_ids = ", ".join(
+                item.evidence_id
+                for item in sorted(candidates, key=lambda item: item.evidence_id)
+                if item.evidence_id != winner.evidence_id
+            )
+            rule_ids = tuple(
+                sorted(
+                    {
+                        rule_id
+                        for item in candidates
+                        for rule_id in item.source_rule_ids
+                    }
+                )
+            )
+            winner = replace(
+                winner,
+                source_rule_ids=rule_ids,
+                reason=(
+                    f"{winner.reason} Corroborating record(s) {corroborating_ids} share "
+                    "the same underlying fact and were retained in the trace without "
+                    "adding their weight."
+                ),
+            )
+        result.append(winner)
+    return tuple(result)
 
 
 def _strength(supporting: float, challenging: float, net: float) -> str:
@@ -85,6 +131,7 @@ def _timing(period: str, outlook: Outlook) -> tuple[str, str | None, str | None]
 
 
 def _evaluate_domain(period: str, domain: str, evidence: tuple[Evidence, ...]) -> DomainResult:
+    evidence = _deduplicate_evidence(evidence)
     supporting = tuple(item for item in evidence if item.polarity is Polarity.SUPPORTING)
     challenging = tuple(item for item in evidence if item.polarity is Polarity.CHALLENGING)
     contextual = tuple(item for item in evidence if item.polarity is Polarity.CONTEXTUAL)

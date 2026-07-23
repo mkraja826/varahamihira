@@ -140,9 +140,13 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
         "wellbeing",
     }
     assert by_domain["money_resources"].outlook is Outlook.CHALLENGING
-    assert by_domain["travel_change"].outlook is Outlook.MIXED
-    assert by_domain["family_home"].outlook is Outlook.MIXED
+    assert by_domain["travel_change"].outlook is Outlook.CHALLENGING
+    assert by_domain["family_home"].outlook is Outlook.FAVOURABLE
     assert by_domain["career"].challenging_timing
     assert by_domain["wellbeing"].outlook is Outlook.CHALLENGING
     assert by_domain["spirituality"].outlook is Outlook.FAVOURABLE
     assert len(by_domain["spirituality"].supporting_factors) == 1
+    assert any(
+        factor.evidence_id.startswith("natal-occupant-")
+        for factor in by_domain["family_home"].supporting_factors
+    )

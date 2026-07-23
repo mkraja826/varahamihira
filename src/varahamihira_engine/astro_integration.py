@@ -41,6 +41,7 @@ _SIGN_RULERS = {
 }
 
 _NATAL_LORD_CHANNEL_FACTOR = 0.60
+_NATAL_OCCUPANT_CHANNEL_FACTOR = 0.40
 
 
 def _mapping(value: Any, field: str) -> Mapping[str, Any]:
@@ -139,6 +140,74 @@ def _natal_domain_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
                         f"{_NATAL_LORD_CHANNEL_FACTOR:.2f}. "
                         "This is an API synthesis convention, not a classical textual formula."
                     ),
+                    independence_key=f"natal-{domain}-{lord}-controlled-strength",
+                )
+            )
+    return evidence
+
+
+def _natal_occupant_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
+    strength = _mapping(
+        weighted_dasha.get("weighted_strength"),
+        "weighted_dasha.weighted_strength",
+    )
+    raw_strength = _mapping(strength.get("raw_strength"), "weighted_strength.raw_strength")
+    raw_grahas = _sequence(raw_strength.get("grahas"), "raw_strength.grahas")
+    weighted_grahas = {
+        str(item.get("graha", "")).strip().lower(): item
+        for raw in _sequence(
+            strength.get("weighted_grahas"),
+            "weighted_strength.weighted_grahas",
+        )
+        if (item := _mapping(raw, "weighted graha"))
+    }
+
+    evidence: list[Evidence] = []
+    seen: set[tuple[str, str, int]] = set()
+    for raw in raw_grahas:
+        graha = _mapping(raw, "raw strength graha")
+        name = str(graha.get("graha", "")).strip().lower()
+        house = int(graha.get("d1_house", 0))
+        weighted = weighted_grahas.get(name)
+        if not name or not 1 <= house <= 12 or weighted is None:
+            continue
+        for domain, houses in _LIFE_DOMAINS.items():
+            identity = (domain, name, house)
+            if house not in houses or identity in seen:
+                continue
+            seen.add(identity)
+            score = float(weighted.get("total_score", 0.0))
+            polarity = (
+                Polarity.SUPPORTING
+                if score > 0
+                else Polarity.CHALLENGING
+                if score < 0
+                else Polarity.CONTEXTUAL
+            )
+            weight = (
+                round(_score_weight(score) * _NATAL_OCCUPANT_CHANNEL_FACTOR, 6)
+                if polarity is not Polarity.CONTEXTUAL
+                else 0.0
+            )
+            evidence.append(
+                Evidence(
+                    evidence_id=f"natal-occupant-{domain}-{house}-{name}",
+                    domain=domain,
+                    statement=(
+                        f"{name.title()} occupies relevant house {house} with controlled "
+                        f"natal strength {score:.2f}."
+                    ),
+                    polarity=polarity,
+                    weight=weight,
+                    source_rule_ids=_component_rule_ids(weighted),
+                    source_kind="convention",
+                    reason=(
+                        "Natal whole-sign occupant channel. Direction follows the transparent "
+                        "strength score; weight = normalized absolute score × "
+                        f"{_NATAL_OCCUPANT_CHANNEL_FACTOR:.2f}. This is an API synthesis "
+                        "convention, not a classical textual formula."
+                    ),
+                    independence_key=f"natal-{domain}-{name}-controlled-strength",
                 )
             )
     return evidence
@@ -188,6 +257,7 @@ def _career_evidence(weighted_career: Mapping[str, Any]) -> list[Evidence]:
                 source_kind="convention",
                 reason=str(strength.get("reason", "")).strip()
                 or "Controlled career-indicator strength summary.",
+                independence_key=f"career-karmājīva-{graha.lower()}-strength",
             )
         )
     return evidence
@@ -240,6 +310,10 @@ def _dasha_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
                     source_rule_ids=rule_ids,
                     source_kind="classical" if rule_ids else "convention",
                     reason=reason or "Active-daśā evidence supplied by Astro.",
+                    independence_key=(
+                        f"dasha-{level_index + 1}-{level_name}-{lord}-"
+                        f"{fact_name}-{value or 'none'}-overall"
+                    ),
                 )
                 evidence.append(base)
                 for domain in sorted(relevant_domains):
@@ -260,6 +334,10 @@ def _dasha_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
                                 f"the active {level_name} lord owns relevant house(s): "
                                 f"{relevant_houses}."
                             ),
+                            independence_key=(
+                                f"dasha-{level_index + 1}-{level_name}-{lord}-"
+                                f"{fact_name}-{value or 'none'}-{domain}"
+                            ),
                         )
                     )
     return evidence
@@ -279,6 +357,7 @@ def _coverage_evidence() -> list[Evidence]:
             source_rule_ids=(),
             source_kind="convention",
             reason="Coverage marker; it does not create a favourable or negative score.",
+            independence_key=f"coverage-{domain}",
         )
         for domain in ("overall", *_LIFE_DOMAINS)
     ]
@@ -310,6 +389,7 @@ def request_from_astro_analysis(
     evidence = (
         _coverage_evidence()
         + _natal_domain_evidence(weighted_dasha)
+        + _natal_occupant_evidence(weighted_dasha)
         + _career_evidence(weighted_career)
         + _dasha_evidence(weighted_dasha)
     )

@@ -30,6 +30,7 @@ class Evidence:
     source_rule_ids: tuple[str, ...]
     source_kind: str
     reason: str
+    independence_key: str = ""
 
     def __post_init__(self) -> None:
         if not self.evidence_id.strip():
@@ -44,6 +45,8 @@ class Evidence:
             raise ValueError("source_kind must be classical or convention")
         if self.source_kind == "classical" and not self.source_rule_ids:
             raise ValueError("classical evidence requires at least one source rule ID")
+        if not self.independence_key.strip():
+            object.__setattr__(self, "independence_key", self.evidence_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +104,7 @@ class PredictionResponse:
                 "source_rule_ids": list(item.source_rule_ids),
                 "source_kind": item.source_kind,
                 "reason": item.reason,
+                "independence_key": item.independence_key,
             }
 
         return {

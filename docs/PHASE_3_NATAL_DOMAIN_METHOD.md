@@ -39,9 +39,20 @@ Wellbeing is non-diagnostic. The blocked consumer domains in `policy.py` remain 
 
    `min(1, max(0.1, abs(score) / 8)) * 0.60`
 
-The remaining 0.40 of the future natal-domain budget is reserved for independently sourced
-occupant, aspect, significator, varga, and cancellation channels. They must not be enabled
-until their formulas and duplicate-evidence rules are specified and tested.
+## Natal occupant channel
+
+Each classical Graha occupying a relevant whole-sign house creates an occupant trace. Its
+direction uses the same controlled strength score and its maximum channel weight is:
+
+`min(1, max(0.1, abs(score) / 8)) * 0.40`
+
+The occupant and house-lord traces use the same independence key when they rely on the same
+planet-strength fact for the same domain. The engine keeps the strongest trace, records the
+corroborating evidence identifier, and does not add both weights. Conflicting polarities under
+one independence key are rejected as a modelling error.
+
+Aspect, significator, varga, and cancellation channels remain disabled until their formulas,
+source boundaries, and duplicate-evidence rules are specified and tested.
 
 ## Abstention and conflict
 
