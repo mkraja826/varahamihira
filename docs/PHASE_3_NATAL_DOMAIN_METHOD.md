@@ -108,8 +108,20 @@ No D10 sign, lord, dignity, house, or career conclusion may be inferred until As
 - external validation evidence;
 - a source-traceable interpretation contract.
 
-Cancellation channels remain disabled until their formulas, source boundaries, and
-duplicate-evidence rules are specified and tested.
+## Cancellation and modification boundary
+
+The prediction engine consumes Astro's machine-readable cancellation policy and requires
+`varahamihira_v1` to report zero confirmed rules, cancellation disabled, and zero applied
+adjustment. A debilitated Graha marked `unsupported_by_profile` remains negative according
+to its controlled strength; its existing domain trace receives
+`VM-BJ-C02-CANCELLATION-SOURCE-BOUNDARY-001` and a statement that no cancellation was applied.
+This annotation is non-additive.
+
+The adapter fails closed if Astro reports an enabled cancellation rule, a non-zero
+cancellation adjustment, or an applied per-Graha cancellation. Nīcabhaṅga conventions from
+later or different texts are not imported into the Bṛhat Jātaka profile. Enabling any such
+rule requires a separate versioned source profile, verse-level provenance, geometry tests,
+duplicate-evidence rules, reference fixtures, and external review.
 
 ## Abstention and conflict
 

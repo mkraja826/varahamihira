@@ -1,3 +1,5 @@
+import pytest
+
 from varahamihira_engine import Outlook, evaluate
 from varahamihira_engine.astro_integration import request_from_astro_analysis
 
@@ -30,12 +32,27 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
         "weighted_strength": {
             "calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1",
             "raw_strength": {
+                "cancellation_policy": {
+                    "confirmed_rule_count": 0,
+                    "cancellation_rules_enabled": False,
+                    "supported_rule_ids": [],
+                },
+                "cancellations_applied": False,
                 "grahas": [
                     {
                         "graha": name,
                         "d1_sign_index": index,
                         "d1_house": index,
                         "vargottama": name == "jupiter",
+                        "cancellation": {
+                            "status": (
+                                "unsupported_by_profile"
+                                if name == "saturn"
+                                else "not_applicable"
+                            ),
+                            "applicable": name == "saturn",
+                            "cancellation_applied": False,
+                        },
                     }
                     for index, name in enumerate(
                         ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"],
@@ -47,6 +64,8 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
                 {
                     "graha": name,
                     "total_score": score,
+                    "cancellation_adjustment": 0.0,
+                    "cancellation_applied": False,
                     "components": [
                         {
                             "classical_rule_ids": ["VM-BJ-C02-DIGNITY-001"],
@@ -211,3 +230,27 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     )
     assert d10_marker.weight == 0.0
     assert "unavailable" in d10_marker.statement
+    saturn_boundary = next(
+        factor
+        for factor in by_domain["career"].challenging_factors
+        if factor.independence_key == "natal-career-saturn-controlled-strength"
+    )
+    assert "Cancellation boundary" in saturn_boundary.reason
+    assert "No cancellation or score adjustment was applied" in saturn_boundary.reason
+    assert "VM-BJ-C02-CANCELLATION-SOURCE-BOUNDARY-001" in (
+        saturn_boundary.source_rule_ids
+    )
+
+    weighted_dasha["weighted_strength"]["weighted_grahas"][-1][
+        "cancellation_adjustment"
+    ] = 4.0
+    with pytest.raises(
+        ValueError,
+        match="unsupported cancellation adjustment",
+    ):
+        request_from_astro_analysis(
+            period="daily",
+            as_of="2026-07-23T12:00:00+05:30",
+            weighted_career=weighted_career,
+            weighted_dasha=weighted_dasha,
+        )

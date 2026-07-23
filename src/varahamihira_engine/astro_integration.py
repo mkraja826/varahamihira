@@ -61,6 +61,7 @@ _SPECIAL_FULL_ASPECTS = {
 _GENERAL_ASPECT_RULE_ID = "VM-BJ-C02-ASPECT-STRENGTH-EVAL-001"
 _SPECIAL_ASPECT_RULE_ID = "VM-BJ-C02-SPECIAL-ASPECT-EVAL-001"
 _VARGOTTAMA_RULE_ID = "VM-BJ-C01-VARGOTTAMA-EVAL-001"
+_CANCELLATION_BOUNDARY_RULE_ID = "VM-BJ-C02-CANCELLATION-SOURCE-BOUNDARY-001"
 _NATAL_LORD_CHANNEL_FACTOR = 0.60
 _NATAL_OCCUPANT_CHANNEL_FACTOR = 0.40
 _NATAL_ASPECT_CHANNEL_FACTOR = 0.20
@@ -517,6 +518,92 @@ def _apply_d9_confirmation(
     return result
 
 
+def _apply_cancellation_boundary(
+    evidence: list[Evidence],
+    weighted_dasha: Mapping[str, Any],
+) -> list[Evidence]:
+    strength = _mapping(
+        weighted_dasha.get("weighted_strength"),
+        "weighted_dasha.weighted_strength",
+    )
+    if bool(strength.get("cancellations_applied")):
+        raise ValueError("Astro applied an unsupported cancellation")
+
+    for raw in _sequence(strength.get("weighted_grahas"), "weighted_strength.weighted_grahas"):
+        weighted = _mapping(raw, "weighted graha")
+        if bool(weighted.get("cancellation_applied")) or float(
+            weighted.get("cancellation_adjustment", 0.0)
+        ) != 0.0:
+            raise ValueError("Astro applied an unsupported cancellation adjustment")
+
+    raw_strength = _mapping(strength.get("raw_strength"), "weighted_strength.raw_strength")
+    policy = _mapping(
+        raw_strength.get("cancellation_policy"),
+        "raw_strength.cancellation_policy",
+    )
+    if (
+        bool(policy.get("cancellation_rules_enabled"))
+        or int(policy.get("confirmed_rule_count", 0)) != 0
+        or bool(_strings(policy.get("supported_rule_ids")))
+        or bool(raw_strength.get("cancellations_applied"))
+    ):
+        raise ValueError("Astro cancellation policy exceeds varahamihira_v1")
+
+    unsupported: set[str] = set()
+    for raw in _sequence(raw_strength.get("grahas"), "raw_strength.grahas"):
+        graha = _mapping(raw, "raw strength graha")
+        cancellation = _mapping(
+            graha.get("cancellation"),
+            "raw strength graha cancellation",
+        )
+        if bool(cancellation.get("cancellation_applied")):
+            raise ValueError("Astro applied an unsupported Graha cancellation")
+        if (
+            bool(cancellation.get("applicable"))
+            and str(cancellation.get("status", "")) == "unsupported_by_profile"
+        ):
+            name = str(graha.get("graha", "")).strip().lower()
+            if name:
+                unsupported.add(name)
+
+    if not unsupported:
+        return evidence
+
+    result: list[Evidence] = []
+    for item in evidence:
+        graha = next(
+            (
+                name
+                for name in unsupported
+                if item.independence_key.endswith(f"-{name}-controlled-strength")
+            ),
+            None,
+        )
+        if graha is None:
+            result.append(item)
+            continue
+        result.append(
+            replace(
+                item,
+                source_rule_ids=tuple(
+                    sorted(
+                        {
+                            *item.source_rule_ids,
+                            _CANCELLATION_BOUNDARY_RULE_ID,
+                        }
+                    )
+                ),
+                reason=(
+                    f"{item.reason} Cancellation boundary: {graha.title()} is a "
+                    "debilitation-cancellation candidate, but varahamihira_v1 has no "
+                    "registered verse-level cancellation formula. No cancellation or "
+                    "score adjustment was applied."
+                ),
+            )
+        )
+    return result
+
+
 def _coverage_evidence() -> list[Evidence]:
     evidence = [
         Evidence(
@@ -589,6 +676,7 @@ def request_from_astro_analysis(
         + _dasha_evidence(weighted_dasha)
     )
     evidence = _apply_d9_confirmation(evidence, weighted_dasha)
+    evidence = _apply_cancellation_boundary(evidence, weighted_dasha)
     if not evidence:
         raise ValueError("Astro analysis produced no evaluable evidence")
 
