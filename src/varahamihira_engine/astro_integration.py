@@ -355,19 +355,31 @@ def _career_evidence(weighted_career: Mapping[str, Any]) -> list[Evidence]:
         rule_ids = rules_by_graha.get(graha, ())
         evidence.append(
             Evidence(
-                evidence_id=f"career-candidate-{index + 1}-{graha.lower()}",
+                evidence_id=(
+                    f"natal-karaka-career-karmājīva-"
+                    f"{index + 1}-{graha.lower()}"
+                ),
                 domain="career",
                 statement=(
-                    f"{graha} appears in {repetition} Karmājīva channel"
+                    f"{graha} is a declared Chapter 10 Karmājīva indicator in "
+                    f"{repetition} independent reference channel"
                     f"{'s' if repetition != 1 else ''} with controlled strength {score:.2f}."
                 ),
                 polarity=polarity,
                 weight=weight,
                 source_rule_ids=rule_ids,
                 source_kind="convention",
-                reason=str(strength.get("reason", "")).strip()
-                or "Controlled career-indicator strength summary.",
-                independence_key=f"career-karmājīva-{graha.lower()}-strength",
+                reason=(
+                    (
+                        str(strength.get("reason", "")).strip()
+                        or "Controlled career-indicator strength summary."
+                    )
+                    + " Karmājīva derivation is classical; converting controlled strength "
+                    "to directional evidence is an API convention."
+                ),
+                independence_key=(
+                    f"natal-career-{graha.lower()}-controlled-strength"
+                ),
             )
         )
     return evidence
@@ -460,7 +472,8 @@ def _coverage_evidence() -> list[Evidence]:
             domain=domain,
             statement=(
                 f"{domain.replace('_', ' ').title()} is evaluated only from traceable "
-                "active-daśā and house-lord evidence currently available."
+                "active-daśā, natal lord, occupant, aspect, and explicitly declared "
+                "significator evidence currently available."
             ),
             polarity=Polarity.CONTEXTUAL,
             weight=0.0,

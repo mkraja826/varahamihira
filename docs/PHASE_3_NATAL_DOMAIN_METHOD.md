@@ -74,8 +74,24 @@ directional domain weight is an API convention. House-lord, occupant, and aspect
 the same independence key when they use the same source planet-strength fact for one domain.
 The strongest trace is scored once and all corroborating evidence identifiers remain visible.
 
-Significator, varga, and cancellation channels remain disabled until their formulas, source
-boundaries, and duplicate-evidence rules are specified and tested.
+## Declared significator channel
+
+The `varahamihira_v1` source registry currently supports one domain significator system:
+Chapter 10 Karmājīva for `career`. It derives indicators independently from Lagna, Moon, and
+Sun reference channels and preserves repetition without collapsing those derivations.
+
+The engine converts each declared Karmājīva indicator's controlled strength into career
+evidence. Because the numeric conversion is not a textual formula, the result remains labeled
+`convention` while preserving the Chapter 10 rule identifiers. It shares the career
+planet-strength independence key with lord, occupant, and aspect channels, so the same Graha
+strength is scored once.
+
+No generic kāraka mappings are enabled for money, marriage, family, education, wellbeing,
+travel, or spirituality. Adding mappings from another text or tradition requires a separate
+versioned classical profile; they must not be silently mixed into `varahamihira_v1`.
+
+Varga and cancellation channels remain disabled until their formulas, source boundaries, and
+duplicate-evidence rules are specified and tested.
 
 ## Abstention and conflict
 

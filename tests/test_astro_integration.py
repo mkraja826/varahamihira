@@ -55,7 +55,7 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
                     "mercury": 1.0,
                     "jupiter": 4.0,
                     "venus": -4.0,
-                    "saturn": 2.0,
+                    "saturn": -4.0,
                 }.items()
             ],
         },
@@ -141,7 +141,7 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     }
     assert by_domain["money_resources"].outlook is Outlook.CHALLENGING
     assert by_domain["travel_change"].outlook is Outlook.CHALLENGING
-    assert by_domain["family_home"].outlook is Outlook.FAVOURABLE
+    assert by_domain["family_home"].outlook is Outlook.MIXED
     assert by_domain["career"].challenging_timing
     assert by_domain["wellbeing"].outlook is Outlook.CHALLENGING
     assert by_domain["spirituality"].outlook is Outlook.MIXED
@@ -171,3 +171,18 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     )
     assert mars_aspect.weight == 0.2
     assert "VM-BJ-C02-SPECIAL-ASPECT-EVAL-001" in mars_aspect.source_rule_ids
+    karaka_factors = [
+        factor
+        for result in by_domain.values()
+        for factor in (
+            *result.supporting_factors,
+            *result.challenging_factors,
+            *result.contextual_factors,
+        )
+        if factor.evidence_id.startswith("natal-karaka-")
+    ]
+    assert len(karaka_factors) == 1
+    assert karaka_factors[0].domain == "career"
+    assert "VM-BJ-C10-VOCATION-JUPITER-SATURN-001" in (
+        karaka_factors[0].source_rule_ids
+    )
