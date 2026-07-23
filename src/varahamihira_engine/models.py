@@ -56,6 +56,7 @@ class PredictionRequest:
     evidence: tuple[Evidence, ...]
     calculation_profile: str = ASTRO_PROFILE
     classical_profile: str = CLASSICAL_PROFILE
+    timing_evidence_available: bool = False
 
     def __post_init__(self) -> None:
         if self.period not in {"daily", "weekly", "monthly", "natal"}:
@@ -76,6 +77,7 @@ class DomainResult:
     net_score: float
     statement: str
     advisory: str
+    timing_status: str
     favourable_timing: str | None
     challenging_timing: str | None
     supporting_factors: tuple[Evidence, ...]
@@ -123,6 +125,7 @@ class PredictionResponse:
                     "net_score": result.net_score,
                     "statement": result.statement,
                     "advisory": result.advisory,
+                    "timing_status": result.timing_status,
                     "favourable_timing": result.favourable_timing,
                     "challenging_timing": result.challenging_timing,
                     "supporting_factors": [

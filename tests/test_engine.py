@@ -45,6 +45,38 @@ def test_negative_evidence_is_reported_directly_without_sugar_coating() -> None:
     assert result.net_score == -0.6
     assert "negative" in result.statement
     assert result.challenging_factors[0].evidence_id == "negative-1"
+    assert result.timing_status == "unavailable"
+    assert result.favourable_timing is None
+    assert result.challenging_timing is None
+
+
+def test_timing_language_requires_explicit_timing_evidence() -> None:
+    result = evaluate(
+        PredictionRequest(
+            period="daily",
+            as_of="2026-07-23T00:00:00+05:30",
+            evidence=(evidence("negative-1", Polarity.CHALLENGING, 0.8),),
+            timing_evidence_available=True,
+        )
+    ).results[0]
+
+    assert result.timing_status == "evaluated"
+    assert result.challenging_timing
+
+
+def test_natal_result_never_claims_a_dated_timing_window() -> None:
+    result = evaluate(
+        PredictionRequest(
+            period="natal",
+            as_of="2026-07-23T00:00:00+05:30",
+            evidence=(evidence("positive-1", Polarity.SUPPORTING, 0.8),),
+            timing_evidence_available=True,
+        )
+    ).results[0]
+
+    assert result.timing_status == "not_applicable"
+    assert result.favourable_timing is None
+    assert result.challenging_timing is None
 
 
 def test_close_conflict_is_mixed_and_preserves_both_sides() -> None:

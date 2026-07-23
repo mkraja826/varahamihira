@@ -96,12 +96,33 @@ def _statement(domain: str, outlook: Outlook, strength: str) -> str:
     return f"There is insufficient directional evidence for {readable}."
 
 
-def _timing(period: str, outlook: Outlook) -> tuple[str, str | None, str | None]:
+def _timing(
+    period: str,
+    outlook: Outlook,
+    timing_evidence_available: bool,
+) -> tuple[str, str, str | None, str | None]:
+    if period == "natal":
+        return (
+            "Use this as lifetime chart context, not as a dated forecast.",
+            "not_applicable",
+            None,
+            None,
+        )
+    if not timing_evidence_available:
+        return (
+            "This conclusion reflects natal capacity and active-period context only; "
+            "no short-term transit window has been validated.",
+            "unavailable",
+            None,
+            None,
+        )
+
     window = {"daily": "day", "weekly": "week", "monthly": "month", "natal": "natal period"}[period]
     if outlook is Outlook.FAVOURABLE:
         return (
             "Use the comparatively supportive window for measured action; "
             "confirm important decisions with real-world facts.",
+            "evaluated",
             f"The evaluated {window} is comparatively supportive; this is not a "
             "guaranteed outcome or an exact clock-time election.",
             None,
@@ -110,6 +131,7 @@ def _timing(period: str, outlook: Outlook) -> tuple[str, str | None, str | None]
         return (
             "Proceed cautiously, reduce avoidable exposure, and delay "
             "non-essential commitments when practical.",
+            "evaluated",
             None,
             f"The evaluated {window} carries comparatively challenging indications; "
             "this does not guarantee harm.",
@@ -118,6 +140,7 @@ def _timing(period: str, outlook: Outlook) -> tuple[str, str | None, str | None]
         return (
             "Act selectively: use the supporting factors and actively mitigate "
             "the stated challenges.",
+            "evaluated",
             f"Parts of the evaluated {window} are supportive, but no exact "
             "clock-time window has been validated.",
             f"Parts of the evaluated {window} require caution; the evidence "
@@ -125,12 +148,18 @@ def _timing(period: str, outlook: Outlook) -> tuple[str, str | None, str | None]
         )
     return (
         "No directional advisory is justified from the available evidence.",
+        "evaluated",
         None,
         None,
     )
 
 
-def _evaluate_domain(period: str, domain: str, evidence: tuple[Evidence, ...]) -> DomainResult:
+def _evaluate_domain(
+    period: str,
+    domain: str,
+    evidence: tuple[Evidence, ...],
+    timing_evidence_available: bool,
+) -> DomainResult:
     evidence = _deduplicate_evidence(evidence)
     supporting = tuple(item for item in evidence if item.polarity is Polarity.SUPPORTING)
     challenging = tuple(item for item in evidence if item.polarity is Polarity.CHALLENGING)
@@ -141,7 +170,11 @@ def _evaluate_domain(period: str, domain: str, evidence: tuple[Evidence, ...]) -
     net_score = round(supporting_score - challenging_score, 6)
     outlook = _outlook(supporting_score, challenging_score)
     strength = _strength(supporting_score, challenging_score, net_score)
-    advisory, favourable_timing, challenging_timing = _timing(period, outlook)
+    advisory, timing_status, favourable_timing, challenging_timing = _timing(
+        period,
+        outlook,
+        timing_evidence_available,
+    )
 
     return DomainResult(
         domain=domain,
@@ -152,6 +185,7 @@ def _evaluate_domain(period: str, domain: str, evidence: tuple[Evidence, ...]) -
         net_score=net_score,
         statement=_statement(domain, outlook, strength),
         advisory=advisory,
+        timing_status=timing_status,
         favourable_timing=favourable_timing,
         challenging_timing=challenging_timing,
         supporting_factors=supporting,
@@ -168,7 +202,12 @@ def evaluate(request: PredictionRequest) -> PredictionResponse:
         grouped[item.domain].append(item)
 
     results = tuple(
-        _evaluate_domain(request.period, domain, tuple(grouped[domain]))
+        _evaluate_domain(
+            request.period,
+            domain,
+            tuple(grouped[domain]),
+            request.timing_evidence_available,
+        )
         for domain in sorted(grouped)
     )
     return PredictionResponse(

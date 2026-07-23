@@ -166,7 +166,8 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     assert by_domain["money_resources"].outlook is Outlook.CHALLENGING
     assert by_domain["travel_change"].outlook is Outlook.CHALLENGING
     assert by_domain["family_home"].outlook is Outlook.MIXED
-    assert by_domain["career"].challenging_timing
+    assert by_domain["career"].timing_status == "unavailable"
+    assert by_domain["career"].challenging_timing is None
     assert by_domain["wellbeing"].outlook is Outlook.CHALLENGING
     assert by_domain["spirituality"].outlook is Outlook.MIXED
     assert (

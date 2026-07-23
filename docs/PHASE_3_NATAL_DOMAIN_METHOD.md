@@ -130,6 +130,11 @@ duplicate-evidence rules, reference fixtures, and external review.
 - Conflicts are resolved by the engine's declared threshold; no factor is silently removed.
 - Coverage markers never affect scores.
 - Daśā and transit evidence remain separate from natal evidence.
+- Daily, weekly, and monthly results expose `timing_status: unavailable` and return no
+  favourable or challenging timing text until the request includes a separately validated
+  transit channel. Natal results expose `timing_status: not_applicable`.
+- Natal and active-daśā evidence may describe capacity and broad activation, but cannot by
+  themselves be relabeled as a daily, weekly, or monthly transit window.
 
 ## Phase 3D validation requirements
 
