@@ -90,7 +90,25 @@ No generic kāraka mappings are enabled for money, marriage, family, education, 
 travel, or spirituality. Adding mappings from another text or tradition requires a separate
 versioned classical profile; they must not be silently mixed into `varahamihira_v1`.
 
-Varga and cancellation channels remain disabled until their formulas, source boundaries, and
+## Varga confirmation boundary
+
+D9 is used only through the existing, boundary-tested Vargottama fact: a classical Graha
+occupies the same Rashi in D1 and D9. When present, the engine attaches
+`VM-BJ-C01-VARGOTTAMA-EVAL-001` to every existing domain trace using that Graha's controlled
+strength. D9 confirmation does not create a new directional weight because Vargottama already
+contributes to the controlled strength score.
+
+Astro does not currently expose a versioned D10 calculation contract. Career results therefore
+carry a zero-weight contextual abstention marker stating that D10 confirmation was not used.
+No D10 sign, lord, dignity, house, or career conclusion may be inferred until Astro adds:
+
+- an immutable D10 mapping profile;
+- exact 3-degree boundary policy and boundary tests;
+- calculation regression fixtures;
+- external validation evidence;
+- a source-traceable interpretation contract.
+
+Cancellation channels remain disabled until their formulas, source boundaries, and
 duplicate-evidence rules are specified and tested.
 
 ## Abstention and conflict

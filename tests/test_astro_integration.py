@@ -31,7 +31,12 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
             "calculation_profile": "south_indian_drik_lahiri_jpl_de440s_v1",
             "raw_strength": {
                 "grahas": [
-                    {"graha": name, "d1_sign_index": index, "d1_house": index}
+                    {
+                        "graha": name,
+                        "d1_sign_index": index,
+                        "d1_house": index,
+                        "vargottama": name == "jupiter",
+                    }
                     for index, name in enumerate(
                         ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"],
                         start=1,
@@ -186,3 +191,23 @@ def test_real_astro_contract_maps_negative_and_positive_evidence_without_hiding_
     assert "VM-BJ-C10-VOCATION-JUPITER-SATURN-001" in (
         karaka_factors[0].source_rule_ids
     )
+    jupiter_confirmation = next(
+        factor
+        for factor in (
+            *by_domain["spirituality"].supporting_factors,
+            *by_domain["spirituality"].challenging_factors,
+        )
+        if factor.independence_key
+        == "natal-spirituality-jupiter-controlled-strength"
+    )
+    assert "D9 confirmation" in jupiter_confirmation.reason
+    assert "VM-BJ-C01-VARGOTTAMA-EVAL-001" in (
+        jupiter_confirmation.source_rule_ids
+    )
+    d10_marker = next(
+        factor
+        for factor in by_domain["career"].contextual_factors
+        if factor.evidence_id == "coverage-varga-d10-career"
+    )
+    assert d10_marker.weight == 0.0
+    assert "unavailable" in d10_marker.statement

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
+from dataclasses import replace
 from typing import Any
 
 from .models import Evidence, Polarity, PredictionRequest
@@ -59,6 +60,7 @@ _SPECIAL_FULL_ASPECTS = {
 }
 _GENERAL_ASPECT_RULE_ID = "VM-BJ-C02-ASPECT-STRENGTH-EVAL-001"
 _SPECIAL_ASPECT_RULE_ID = "VM-BJ-C02-SPECIAL-ASPECT-EVAL-001"
+_VARGOTTAMA_RULE_ID = "VM-BJ-C01-VARGOTTAMA-EVAL-001"
 _NATAL_LORD_CHANNEL_FACTOR = 0.60
 _NATAL_OCCUPANT_CHANNEL_FACTOR = 0.40
 _NATAL_ASPECT_CHANNEL_FACTOR = 0.20
@@ -465,8 +467,58 @@ def _dasha_evidence(weighted_dasha: Mapping[str, Any]) -> list[Evidence]:
     return evidence
 
 
+def _apply_d9_confirmation(
+    evidence: list[Evidence],
+    weighted_dasha: Mapping[str, Any],
+) -> list[Evidence]:
+    strength = _mapping(
+        weighted_dasha.get("weighted_strength"),
+        "weighted_dasha.weighted_strength",
+    )
+    raw_strength = _mapping(strength.get("raw_strength"), "weighted_strength.raw_strength")
+    raw_grahas = _sequence(raw_strength.get("grahas"), "raw_strength.grahas")
+    confirmed = {
+        str(item.get("graha", "")).strip().lower()
+        for raw in raw_grahas
+        if (item := _mapping(raw, "raw strength graha"))
+        and bool(item.get("vargottama"))
+    }
+    if not confirmed:
+        return evidence
+
+    result: list[Evidence] = []
+    for item in evidence:
+        graha = next(
+            (
+                name
+                for name in confirmed
+                if item.independence_key.endswith(
+                    f"-{name}-controlled-strength"
+                )
+            ),
+            None,
+        )
+        if graha is None:
+            result.append(item)
+            continue
+        result.append(
+            replace(
+                item,
+                source_rule_ids=tuple(
+                    sorted({*item.source_rule_ids, _VARGOTTAMA_RULE_ID})
+                ),
+                reason=(
+                    f"{item.reason} D9 confirmation: {graha.title()} is Vargottama "
+                    "(the same Rashi in D1 and D9). This confirms the existing trace "
+                    "without adding a second directional weight."
+                ),
+            )
+        )
+    return result
+
+
 def _coverage_evidence() -> list[Evidence]:
-    return [
+    evidence = [
         Evidence(
             evidence_id=f"coverage-{domain}",
             domain=domain,
@@ -484,6 +536,25 @@ def _coverage_evidence() -> list[Evidence]:
         )
         for domain in ("overall", *_LIFE_DOMAINS)
     ]
+    evidence.append(
+        Evidence(
+            evidence_id="coverage-varga-d10-career",
+            domain="career",
+            statement=(
+                "D10 career confirmation is unavailable and is not used in this result."
+            ),
+            polarity=Polarity.CONTEXTUAL,
+            weight=0.0,
+            source_rule_ids=(),
+            source_kind="convention",
+            reason=(
+                "Astro does not currently expose a versioned, boundary-tested D10 "
+                "calculation contract. The engine abstains instead of deriving one."
+            ),
+            independence_key="coverage-varga-d10-career",
+        )
+    )
+    return evidence
 
 
 def request_from_astro_analysis(
@@ -517,6 +588,7 @@ def request_from_astro_analysis(
         + _career_evidence(weighted_career)
         + _dasha_evidence(weighted_dasha)
     )
+    evidence = _apply_d9_confirmation(evidence, weighted_dasha)
     if not evidence:
         raise ValueError("Astro analysis produced no evaluable evidence")
 
