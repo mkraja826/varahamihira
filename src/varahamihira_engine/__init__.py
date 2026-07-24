@@ -1,4 +1,5 @@
 from .astro_integration import request_from_astro_analysis
+from .compatibility_adapter import compatibility_request_from_astro_facts
 from .compatibility_interpretation import (
     COMPATIBILITY_DISCLAIMER,
     COMPATIBILITY_INTERPRETATION_VERSION,
@@ -50,6 +51,7 @@ __all__ = [
     "PredictionRequest",
     "PredictionResponse",
     "calculate_outlook_index",
+    "compatibility_request_from_astro_facts",
     "evaluate",
     "interpret_compatibility",
     "request_from_astro_analysis",
