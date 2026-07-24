@@ -1,13 +1,13 @@
 import pytest
 
 from varahamihira_engine import (
-    calculate_outlook_index,
-    ConfidenceStatus,
-    ConflictStatus,
     OUTLOOK_INDEX_DISCLAIMER,
     OUTLOOK_INDEX_VERSION,
+    ConfidenceStatus,
+    ConflictStatus,
     OutlookBand,
     OutlookDomain,
+    calculate_outlook_index,
 )
 
 
