@@ -18,7 +18,6 @@ from varahamihira_engine.outlook_index import (
     OutlookDomain,
 )
 
-
 MAXIMUMS = {
     CompatibilityComponent.VARNA: 1,
     CompatibilityComponent.VASHYA: 2,
