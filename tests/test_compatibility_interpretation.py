@@ -3,11 +3,11 @@ import pytest
 from varahamihira_engine.compatibility_interpretation import (
     COMPATIBILITY_DISCLAIMER,
     COMPATIBILITY_INTERPRETATION_VERSION,
-    ComponentEvaluationStatus,
-    ComponentInterpretationBand,
     CompatibilityComponent,
     CompatibilityComponentInput,
     CompatibilityInterpretationRequest,
+    ComponentEvaluationStatus,
+    ComponentInterpretationBand,
     ManglikFactorInput,
     ManglikReferencePoint,
     interpret_compatibility,
@@ -142,7 +142,10 @@ def test_partial_interpretation_reports_abstention_and_low_confidence() -> None:
     assert response.evaluated_maximum_points == 27
     assert not response.complete_36_point_evaluation
     assert response.partnership_index.coverage == 0.75
-    assert response.partnership_index.confidence_status is ConfidenceStatus.UNCALIBRATED_LOW
+    assert (
+        response.partnership_index.confidence_status
+        is ConfidenceStatus.UNCALIBRATED_LOW
+    )
     abstained = [
         item
         for item in response.components
@@ -161,7 +164,8 @@ def test_manglik_context_is_comparison_only_not_rejection() -> None:
     assert response.manglik_context.partner_flagged_count == 1
     assert "automatic acceptance or rejection" in response.manglik_context.comparison
     serialized = response.as_dict()
-    assert "not automatic rejection rules" in serialized["manglik_context"]["disclaimer"]
+    disclaimer = serialized["manglik_context"]["disclaimer"]
+    assert "not automatic rejection rules" in disclaimer
 
 
 def test_serialized_contract_is_explicitly_non_deterministic() -> None:
