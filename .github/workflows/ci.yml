@@ -15,5 +15,12 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
+      - name: Capture Ruff diagnostics
+        run: python -m ruff check . --output-format=json > ruff-report.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ruff-report
+          path: ruff-report.json
       - run: python -m ruff check .
       - run: python -m pytest
