@@ -9,15 +9,15 @@ from .models import (
     PredictionResponse,
 )
 from .outlook_index import (
-    calculate_outlook_index,
-    ConfidenceStatus,
-    ConflictStatus,
     OUTLOOK_INDEX_DISCLAIMER,
     OUTLOOK_INDEX_MINIMUM_COVERAGE,
     OUTLOOK_INDEX_VERSION,
+    ConfidenceStatus,
+    ConflictStatus,
     OutlookBand,
     OutlookDomain,
     OutlookIndex,
+    calculate_outlook_index,
 )
 from .policy import ASTROLOGY_DISCLAIMER, ENGINE_VERSION
 
