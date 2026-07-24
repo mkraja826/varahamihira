@@ -1,4 +1,11 @@
 from .astro_integration import request_from_astro_analysis
+from .compatibility_interpretation import (
+    COMPATIBILITY_DISCLAIMER,
+    COMPATIBILITY_INTERPRETATION_VERSION,
+    CompatibilityInterpretationRequest,
+    CompatibilityInterpretationResponse,
+    interpret_compatibility,
+)
 from .engine import evaluate
 from .models import (
     DomainResult,
@@ -23,10 +30,14 @@ from .policy import ASTROLOGY_DISCLAIMER, ENGINE_VERSION
 
 __all__ = [
     "ASTROLOGY_DISCLAIMER",
+    "COMPATIBILITY_DISCLAIMER",
+    "COMPATIBILITY_INTERPRETATION_VERSION",
     "ENGINE_VERSION",
     "OUTLOOK_INDEX_DISCLAIMER",
     "OUTLOOK_INDEX_MINIMUM_COVERAGE",
     "OUTLOOK_INDEX_VERSION",
+    "CompatibilityInterpretationRequest",
+    "CompatibilityInterpretationResponse",
     "ConfidenceStatus",
     "ConflictStatus",
     "DomainResult",
@@ -40,5 +51,6 @@ __all__ = [
     "PredictionResponse",
     "calculate_outlook_index",
     "evaluate",
+    "interpret_compatibility",
     "request_from_astro_analysis",
 ]
