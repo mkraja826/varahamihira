@@ -41,6 +41,9 @@ def request_from_astro_bridge(payload: Mapping[str, Any]) -> PredictionRequest:
                 source_rule_ids=tuple(rule_ids),
                 source_kind=str(raw.get("source_kind", "")),
                 reason=str(raw.get("reason", "")),
+                independence_key=str(
+                    raw.get("independence_key", raw.get("evidence_id", ""))
+                ),
             )
         )
 

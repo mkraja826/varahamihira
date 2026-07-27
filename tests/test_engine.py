@@ -10,6 +10,7 @@ def evidence(
     *,
     domain: str = "career",
     source_kind: str = "classical",
+    independence_key: str = "",
 ) -> Evidence:
     return Evidence(
         evidence_id=evidence_id,
@@ -20,6 +21,7 @@ def evidence(
         source_rule_ids=("TEST-NOT-A-CLASSICAL-CITATION",) if source_kind == "classical" else (),
         source_kind=source_kind,
         reason="Synthetic fixture; not a Brihat Jataka attribution.",
+        independence_key=independence_key,
     )
 
 
@@ -43,6 +45,38 @@ def test_negative_evidence_is_reported_directly_without_sugar_coating() -> None:
     assert result.net_score == -0.6
     assert "negative" in result.statement
     assert result.challenging_factors[0].evidence_id == "negative-1"
+    assert result.timing_status == "unavailable"
+    assert result.favourable_timing is None
+    assert result.challenging_timing is None
+
+
+def test_timing_language_requires_explicit_timing_evidence() -> None:
+    result = evaluate(
+        PredictionRequest(
+            period="daily",
+            as_of="2026-07-23T00:00:00+05:30",
+            evidence=(evidence("negative-1", Polarity.CHALLENGING, 0.8),),
+            timing_evidence_available=True,
+        )
+    ).results[0]
+
+    assert result.timing_status == "evaluated"
+    assert result.challenging_timing
+
+
+def test_natal_result_never_claims_a_dated_timing_window() -> None:
+    result = evaluate(
+        PredictionRequest(
+            period="natal",
+            as_of="2026-07-23T00:00:00+05:30",
+            evidence=(evidence("positive-1", Polarity.SUPPORTING, 0.8),),
+            timing_evidence_available=True,
+        )
+    ).results[0]
+
+    assert result.timing_status == "not_applicable"
+    assert result.favourable_timing is None
+    assert result.challenging_timing is None
 
 
 def test_close_conflict_is_mixed_and_preserves_both_sides() -> None:
@@ -92,5 +126,48 @@ def test_blocked_consumer_domain_is_rejected() -> None:
                     0.8,
                     domain="exact_death",
                 )
+            )
+        )
+
+
+def test_duplicate_underlying_fact_is_counted_once_and_retains_trace() -> None:
+    result = evaluate(
+        request(
+            evidence(
+                "lord-channel",
+                Polarity.SUPPORTING,
+                0.6,
+                independence_key="natal-career-saturn-strength",
+            ),
+            evidence(
+                "occupant-channel",
+                Polarity.SUPPORTING,
+                0.4,
+                independence_key="natal-career-saturn-strength",
+            ),
+        )
+    ).results[0]
+
+    assert result.supporting_score == 0.6
+    assert len(result.supporting_factors) == 1
+    assert "occupant-channel" in result.supporting_factors[0].reason
+
+
+def test_duplicate_underlying_fact_with_conflicting_polarity_fails_closed() -> None:
+    with pytest.raises(ValueError, match="conflicting polarity"):
+        evaluate(
+            request(
+                evidence(
+                    "positive",
+                    Polarity.SUPPORTING,
+                    0.6,
+                    independence_key="same-fact",
+                ),
+                evidence(
+                    "negative",
+                    Polarity.CHALLENGING,
+                    0.4,
+                    independence_key="same-fact",
+                ),
             )
         )

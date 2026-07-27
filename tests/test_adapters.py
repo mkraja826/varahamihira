@@ -20,6 +20,7 @@ def test_astro_bridge_contract_is_parsed_without_endpoint_shape_guessing() -> No
                     "source_rule_ids": ["TEST-NOT-A-CLASSICAL-CITATION"],
                     "source_kind": "classical",
                     "reason": "Synthetic fixture.",
+                    "independence_key": "fixture-fact-1",
                 }
             ],
         }
@@ -27,3 +28,4 @@ def test_astro_bridge_contract_is_parsed_without_endpoint_shape_guessing() -> No
 
     assert request.period == "weekly"
     assert request.evidence[0].polarity is Polarity.CHALLENGING
+    assert request.evidence[0].independence_key == "fixture-fact-1"
